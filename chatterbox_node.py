@@ -46,24 +46,24 @@ def load_chatterbox_vc_from_local(ckpt_dir, device):
         states = torch.load(builtin_voice, map_location=map_location)
         ref_dict = states['gen']
 
-    # Import S3Gen from the same place ChatterboxVC imports it
-    from .local_chatterbox.chatterbox.s3gen import S3Gen
-    s3gen = S3Gen()
-    
-    # Try to load s3gen from either .pt or .safetensors
+    # Check if s3gen.pt exists, if so use original from_local method
     s3gen_pt_path = ckpt_dir / "s3gen.pt"
-    s3gen_safetensors_path = ckpt_dir / "s3gen.safetensors"
-    
     if s3gen_pt_path.exists():
-        s3gen.load_state_dict(torch.load(s3gen_pt_path, map_location=map_location))
-    elif s3gen_safetensors_path.exists():
-        s3gen.load_state_dict(load_file(s3gen_safetensors_path))
+        print(f"[ChatterboxVC] Using s3gen.pt file")
+        return ChatterboxVC.from_local(ckpt_dir, device)
+    
+    # If only safetensors exists, we need to convert it first
+    s3gen_safetensors_path = ckpt_dir / "s3gen.safetensors"
+    if s3gen_safetensors_path.exists():
+        print(f"[ChatterboxVC] Converting s3gen.safetensors to .pt format")
+        # Load safetensors and save as .pt temporarily
+        safetensors_state = load_file(s3gen_safetensors_path)
+        torch.save(safetensors_state, s3gen_pt_path, map_location=map_location)
+        print(f"[ChatterboxVC] Converted s3gen.safetensors to s3gen.pt")
+        # Now use the original from_local method
+        return ChatterboxVC.from_local(ckpt_dir, device)
     else:
         raise FileNotFoundError("Neither s3gen.pt nor s3gen.safetensors found")
-    
-    s3gen.to(device).eval()
-
-    return ChatterboxVC(s3gen, device, ref_dict=ref_dict)
 
 
 class AudioNodeBase:
