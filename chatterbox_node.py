@@ -10,6 +10,7 @@ from .local_chatterbox.chatterbox.tts import ChatterboxTTS
 from .local_chatterbox.chatterbox.vc import ChatterboxVC
 
 from comfy.utils import ProgressBar
+import folder_paths
 
 # Monkey patch torch.load to use MPS or CPU if map_location is not specified
 original_torch_load = torch.load
@@ -26,6 +27,43 @@ def patched_torch_load(*args, **kwargs):
     return original_torch_load(*args, **kwargs)
 
 torch.load = patched_torch_load
+
+
+def load_chatterbox_vc_from_local(ckpt_dir, device):
+    """Custom loader for ChatterboxVC that handles both .pt and .safetensors formats"""
+    from safetensors.torch import load_file
+    
+    ckpt_dir = Path(ckpt_dir)
+    
+    # Always load to CPU first for non-CUDA devices to handle CUDA-saved models
+    if device in ["cpu", "mps"]:
+        map_location = torch.device('cpu')
+    else:
+        map_location = None
+        
+    ref_dict = None
+    if (builtin_voice := ckpt_dir / "conds.pt").exists():
+        states = torch.load(builtin_voice, map_location=map_location)
+        ref_dict = states['gen']
+
+    # Import S3Gen from the same place ChatterboxVC imports it
+    from .local_chatterbox.chatterbox.s3gen import S3Gen
+    s3gen = S3Gen()
+    
+    # Try to load s3gen from either .pt or .safetensors
+    s3gen_pt_path = ckpt_dir / "s3gen.pt"
+    s3gen_safetensors_path = ckpt_dir / "s3gen.safetensors"
+    
+    if s3gen_pt_path.exists():
+        s3gen.load_state_dict(torch.load(s3gen_pt_path, map_location=map_location))
+    elif s3gen_safetensors_path.exists():
+        s3gen.load_state_dict(load_file(s3gen_safetensors_path))
+    else:
+        raise FileNotFoundError("Neither s3gen.pt nor s3gen.safetensors found")
+    
+    s3gen.to(device).eval()
+
+    return ChatterboxVC(s3gen, device, ref_dict=ref_dict)
 
 
 class AudioNodeBase:
@@ -60,6 +98,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
                 "seed": ("INT", {"default": 0, "min": 0, "max": 4294967295}),
             },
             "optional": {
+                "use_custom_model": ("BOOLEAN", {"default": False}),
                 "audio_prompt": ("AUDIO",),
                 "use_cpu": ("BOOLEAN", {"default": False}),
                 "keep_model_loaded": ("BOOLEAN", {"default": False}),
@@ -71,7 +110,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
     FUNCTION = "generate_speech"
     CATEGORY = "ChatterBox"
     
-    def generate_speech(self, text, exaggeration, cfg_weight, temperature, seed, audio_prompt=None, use_cpu=False, keep_model_loaded=False):
+    def generate_speech(self, text, exaggeration, cfg_weight, temperature, seed, use_custom_model=False, audio_prompt=None, use_cpu=False, keep_model_loaded=False):
         """
         Generate speech from text.
         
@@ -81,6 +120,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
             cfg_weight: Controls pace/classifier-free guidance (0.2-1.0).
             temperature: Controls randomness in generation (0.05-5.0).
             seed: Random seed for reproducible generation.
+            use_custom_model: If True, uses custom model from ComfyUI/models/chatterbox/.
             audio_prompt: AUDIO object containing the reference voice for TTS voice cloning.
             use_cpu: If True, forces CPU usage even if CUDA is available.
             keep_model_loaded: If True, keeps the model loaded in memory after generation.
@@ -158,9 +198,65 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
 
 
                 message += f"\nLoading TTS model on {device}..."
-                pbar.update_absolute(10) # Indicate model loading started
-                tts_model = ChatterboxTTS.from_pretrained(device=device)
-                pbar.update_absolute(50) # Indicate model loading finished
+                pbar.update_absolute(10)
+
+                # Check for custom model path
+                if use_custom_model:
+                    model_path = os.path.join(folder_paths.models_dir, "chatterbox")
+                    print(f"[ChatterboxTTS] Looking for custom model at: {model_path}")
+                    print(f"[ChatterboxTTS] ComfyUI models directory: {folder_paths.models_dir}")
+                    message += f"\nLooking for custom model at: {model_path}"
+                    message += f"\nComfyUI models directory: {folder_paths.models_dir}"
+                    if os.path.isdir(model_path):
+                        print(f"[ChatterboxTTS] Custom model directory found: {model_path}")
+                        message += f"\nCustom model directory found: {model_path}"
+                        # List all files in the directory
+                        try:
+                            files_in_dir = os.listdir(model_path)
+                            print(f"[ChatterboxTTS] Files in custom model directory: {files_in_dir}")
+                            message += f"\nFiles in custom model directory: {files_in_dir}"
+                        except Exception as e:
+                            print(f"[ChatterboxTTS] Error listing files in directory: {str(e)}")
+                            message += f"\nError listing files in directory: {str(e)}"
+                        
+                        # Check for required files
+                        required_files = ["ve.safetensors", "t3_cfg.safetensors", "s3gen.safetensors", "tokenizer.json"]
+                        missing_files = []
+                        for file in required_files:
+                            if not os.path.exists(os.path.join(model_path, file)):
+                                missing_files.append(file)
+                        
+                        if missing_files:
+                            print(f"[ChatterboxTTS] ERROR: Missing required files: {missing_files}")
+                            print(f"[ChatterboxTTS] Falling back to default model.")
+                            message += f"\nError: Missing required files in custom model directory: {missing_files}"
+                            message += f"\nFalling back to default model."
+                            tts_model = ChatterboxTTS.from_pretrained(device=device)
+                        else:
+                            try:
+                                print(f"[ChatterboxTTS] Attempting to load custom TTS model...")
+                                message += f"\nAttempting to load custom TTS model..."
+                                tts_model = ChatterboxTTS.from_local(model_path, device=device)
+                                print(f"[ChatterboxTTS] ✅ CUSTOM TTS MODEL LOADED SUCCESSFULLY!")
+                                print(f"[ChatterboxTTS] Model loaded from: {model_path}")
+                                message += f"\n✅ CUSTOM TTS MODEL LOADED SUCCESSFULLY!"
+                                message += f"\nModel loaded from: {model_path}"
+                            except Exception as e:
+                                print(f"[ChatterboxTTS] ❌ ERROR loading custom TTS model: {str(e)}")
+                                print(f"[ChatterboxTTS] Falling back to default Hugging Face model.")
+                                message += f"\n❌ ERROR loading custom TTS model: {str(e)}"
+                                message += f"\nFalling back to default Hugging Face model."
+                                tts_model = ChatterboxTTS.from_pretrained(device=device)
+                    else:
+                        print(f"[ChatterboxTTS] Warning: Custom model directory not found at {model_path}. Falling back to default.")
+                        message += f"\nWarning: Custom model directory not found at {model_path}. Falling back to default."
+                        tts_model = ChatterboxTTS.from_pretrained(device=device)
+                else:
+                    print(f"[ChatterboxTTS] Loading default model from Hugging Face.")
+                    message += "\nLoading default model from Hugging Face."
+                    tts_model = ChatterboxTTS.from_pretrained(device=device)
+
+                pbar.update_absolute(50)
 
                 if keep_model_loaded:
                     FL_ChatterboxTTSNode._tts_model = tts_model
@@ -173,6 +269,14 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
             message += f"\nGenerating speech for: {text[:50]}..." if len(text) > 50 else f"\nGenerating speech for: {text}"
             if audio_prompt_path:
                 message += f"\nUsing audio prompt: {audio_prompt_path}"
+            
+            # Check if we're using custom model
+            if use_custom_model:
+                print(f"[ChatterboxTTS] 🔄 USING CUSTOM MODEL FOR GENERATION")
+                message += f"\n🔄 USING CUSTOM MODEL FOR GENERATION"
+            else:
+                print(f"[ChatterboxTTS] 🔄 USING DEFAULT HUGGING FACE MODEL FOR GENERATION")
+                message += f"\n🔄 USING DEFAULT HUGGING FACE MODEL FOR GENERATION"
             
             pbar.update_absolute(60) # Indicate generation started
             wav = tts_model.generate(
@@ -216,9 +320,31 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
 
 
                 message += f"\nLoading TTS model on {device}..."
-                pbar.update_absolute(10) # Indicate model loading started (fallback)
-                tts_model = ChatterboxTTS.from_pretrained(device=device)
-                pbar.update_absolute(50) # Indicate model loading finished (fallback)
+                pbar.update_absolute(10)
+                
+                if use_custom_model:
+                    model_path = os.path.join(folder_paths.models_dir, "chatterbox")
+                    if os.path.isdir(model_path):
+                        # Check for required files
+                        required_files = ["ve.safetensors", "t3_cfg.safetensors", "s3gen.safetensors", "tokenizer.json"]
+                        missing_files = []
+                        for file in required_files:
+                            if not os.path.exists(os.path.join(model_path, file)):
+                                missing_files.append(file)
+                        
+                        if missing_files:
+                            tts_model = ChatterboxTTS.from_pretrained(device=device)
+                        else:
+                            try:
+                                tts_model = ChatterboxTTS.from_local(model_path, device=device)
+                            except Exception as e:
+                                tts_model = ChatterboxTTS.from_pretrained(device=device)
+                    else:
+                        tts_model = ChatterboxTTS.from_pretrained(device=device)
+                else:
+                    tts_model = ChatterboxTTS.from_pretrained(device=device)
+
+                pbar.update_absolute(50)
                 # Note: keep_model_loaded logic is applied after successful generation
                 # to avoid keeping a failed model loaded.
 
@@ -307,6 +433,7 @@ class FL_ChatterboxVCNode(AudioNodeBase):
                 "seed": ("INT", {"default": 0, "min": 0, "max": 4294967295}),
             },
             "optional": {
+                "use_custom_model": ("BOOLEAN", {"default": False}),
                 "use_cpu": ("BOOLEAN", {"default": False}),
                 "keep_model_loaded": ("BOOLEAN", {"default": False}),
             }
@@ -317,7 +444,7 @@ class FL_ChatterboxVCNode(AudioNodeBase):
     FUNCTION = "convert_voice"
     CATEGORY = "ChatterBox"
     
-    def convert_voice(self, input_audio, target_voice, seed, use_cpu=False, keep_model_loaded=False):
+    def convert_voice(self, input_audio, target_voice, seed, use_custom_model=False, use_cpu=False, keep_model_loaded=False):
         """
         Convert the voice in an audio file to match a target voice.
         
@@ -325,6 +452,7 @@ class FL_ChatterboxVCNode(AudioNodeBase):
             input_audio: AUDIO object containing the audio to convert.
             target_voice: AUDIO object containing the target voice.
             seed: Random seed for reproducible generation.
+            use_custom_model: If True, uses custom model from ComfyUI/models/chatterbox/.
             use_cpu: If True, forces CPU usage even if CUDA is available.
             keep_model_loaded: If True, keeps the model loaded in memory after conversion.
             
@@ -393,9 +521,61 @@ class FL_ChatterboxVCNode(AudioNodeBase):
                          torch.mps.empty_cache() # Clear MPS cache if possible
 
                 message += f"\nLoading VC model on {device}..."
-                pbar.update_absolute(10) # Indicate model loading started
-                vc_model = ChatterboxVC.from_pretrained(device=device)
-                pbar.update_absolute(50) # Indicate model loading finished
+                pbar.update_absolute(10)
+
+                if use_custom_model:
+                    model_path = os.path.join(folder_paths.models_dir, "chatterbox")
+                    print(f"[ChatterboxVC] Looking for custom model at: {model_path}")
+                    print(f"[ChatterboxVC] ComfyUI models directory: {folder_paths.models_dir}")
+                    if os.path.isdir(model_path):
+                        print(f"[ChatterboxVC] Custom VC model directory found: {model_path}")
+                        message += f"\nCustom VC model directory found: {model_path}"
+                        # List all files in the directory
+                        try:
+                            files_in_dir = os.listdir(model_path)
+                            print(f"[ChatterboxVC] Files in custom VC model directory: {files_in_dir}")
+                            message += f"\nFiles in custom VC model directory: {files_in_dir}"
+                        except Exception as e:
+                            print(f"[ChatterboxVC] Error listing files in directory: {str(e)}")
+                            message += f"\nError listing files in directory: {str(e)}"
+                        
+                        # Check for required files for VC (can be either .pt or .safetensors)
+                        has_s3gen = os.path.exists(os.path.join(model_path, "s3gen.pt")) or os.path.exists(os.path.join(model_path, "s3gen.safetensors"))
+                        missing_files = []
+                        if not has_s3gen:
+                            missing_files.append("s3gen.pt or s3gen.safetensors")
+                        
+                        if missing_files:
+                            print(f"[ChatterboxVC] ERROR: Missing required files: {missing_files}")
+                            print(f"[ChatterboxVC] Falling back to default model.")
+                            message += f"\nError: Missing required files in custom model directory: {missing_files}"
+                            message += f"\nFalling back to default model."
+                            vc_model = ChatterboxVC.from_pretrained(device=device)
+                        else:
+                            try:
+                                print(f"[ChatterboxVC] Attempting to load custom VC model...")
+                                message += f"\nAttempting to load custom VC model..."
+                                vc_model = load_chatterbox_vc_from_local(model_path, device=device)
+                                print(f"[ChatterboxVC] ✅ CUSTOM VC MODEL LOADED SUCCESSFULLY!")
+                                print(f"[ChatterboxVC] Model loaded from: {model_path}")
+                                message += f"\n✅ CUSTOM VC MODEL LOADED SUCCESSFULLY!"
+                                message += f"\nModel loaded from: {model_path}"
+                            except Exception as e:
+                                print(f"[ChatterboxVC] ❌ ERROR loading custom VC model: {str(e)}")
+                                print(f"[ChatterboxVC] Falling back to default Hugging Face model.")
+                                message += f"\n❌ ERROR loading custom VC model: {str(e)}"
+                                message += f"\nFalling back to default Hugging Face model."
+                                vc_model = ChatterboxVC.from_pretrained(device=device)
+                    else:
+                        print(f"[ChatterboxVC] Warning: Custom model directory not found at {model_path}. Falling back to default.")
+                        message += f"\nWarning: Custom model directory not found at {model_path}. Falling back to default."
+                        vc_model = ChatterboxVC.from_pretrained(device=device)
+                else:
+                    print(f"[ChatterboxVC] Loading default model from Hugging Face.")
+                    message += "\nLoading default model from Hugging Face."
+                    vc_model = ChatterboxVC.from_pretrained(device=device)
+                
+                pbar.update_absolute(50)
 
                 if keep_model_loaded:
                     FL_ChatterboxVCNode._vc_model = vc_model
@@ -438,9 +618,30 @@ class FL_ChatterboxVCNode(AudioNodeBase):
                          torch.mps.empty_cache() # Clear MPS cache if possible
 
                 message += f"\nLoading VC model on {device}..."
-                pbar.update_absolute(10) # Indicate model loading started (fallback)
-                vc_model = ChatterboxVC.from_pretrained(device=device)
-                pbar.update_absolute(50) # Indicate model loading finished (fallback)
+                pbar.update_absolute(10)
+
+                if use_custom_model:
+                    model_path = os.path.join(folder_paths.models_dir, "chatterbox")
+                    if os.path.isdir(model_path):
+                        # Check for required files for VC (can be either .pt or .safetensors)
+                        has_s3gen = os.path.exists(os.path.join(model_path, "s3gen.pt")) or os.path.exists(os.path.join(model_path, "s3gen.safetensors"))
+                        missing_files = []
+                        if not has_s3gen:
+                            missing_files.append("s3gen.pt or s3gen.safetensors")
+                        
+                        if missing_files:
+                            vc_model = ChatterboxVC.from_pretrained(device=device)
+                        else:
+                            try:
+                                vc_model = load_chatterbox_vc_from_local(model_path, device=device)
+                            except Exception as e:
+                                vc_model = ChatterboxVC.from_pretrained(device=device)
+                    else:
+                        vc_model = ChatterboxVC.from_pretrained(device=device)
+                else:
+                    vc_model = ChatterboxVC.from_pretrained(device=device)
+
+                pbar.update_absolute(50)
                 # Note: keep_model_loaded logic is applied after successful generation
                 # to avoid keeping a failed model loaded.
 
