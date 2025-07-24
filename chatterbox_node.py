@@ -57,6 +57,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
                 "exaggeration": ("FLOAT", {"default": 0.5, "min": 0.25, "max": 2.0, "step": 0.05}),
                 "cfg_weight": ("FLOAT", {"default": 0.5, "min": 0.2, "max": 1.0, "step": 0.05}),
                 "temperature": ("FLOAT", {"default": 0.8, "min": 0.05, "max": 5.0, "step": 0.05}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 4294967295}),
             },
             "optional": {
                 "audio_prompt": ("AUDIO",),
@@ -70,7 +71,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
     FUNCTION = "generate_speech"
     CATEGORY = "ChatterBox"
     
-    def generate_speech(self, text, exaggeration, cfg_weight, temperature, audio_prompt=None, use_cpu=False, keep_model_loaded=False):
+    def generate_speech(self, text, exaggeration, cfg_weight, temperature, seed, audio_prompt=None, use_cpu=False, keep_model_loaded=False):
         """
         Generate speech from text.
         
@@ -79,6 +80,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
             exaggeration: Controls emotion intensity (0.25-2.0).
             cfg_weight: Controls pace/classifier-free guidance (0.2-1.0).
             temperature: Controls randomness in generation (0.05-5.0).
+            seed: Random seed for reproducible generation.
             audio_prompt: AUDIO object containing the reference voice for TTS voice cloning.
             use_cpu: If True, forces CPU usage even if CUDA is available.
             keep_model_loaded: If True, keeps the model loaded in memory after generation.
@@ -86,6 +88,18 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
         Returns:
             Tuple of (audio, message)
         """
+        # Set random seeds for reproducibility
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        if torch.backends.mps.is_available():
+            torch.mps.manual_seed(seed)
+        import numpy as np
+        import random
+        np.random.seed(seed)
+        random.seed(seed)
+        
         # Determine device to use
         device = "cpu" if use_cpu else ("mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu"))
         if use_cpu:
@@ -291,6 +305,7 @@ class FL_ChatterboxVCNode(AudioNodeBase):
             "required": {
                 "input_audio": ("AUDIO",),
                 "target_voice": ("AUDIO",),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 4294967295}),
             },
             "optional": {
                 "use_cpu": ("BOOLEAN", {"default": False}),
@@ -303,19 +318,32 @@ class FL_ChatterboxVCNode(AudioNodeBase):
     FUNCTION = "convert_voice"
     CATEGORY = "ChatterBox"
     
-    def convert_voice(self, input_audio, target_voice, use_cpu=False, keep_model_loaded=False):
+    def convert_voice(self, input_audio, target_voice, seed, use_cpu=False, keep_model_loaded=False):
         """
         Convert the voice in an audio file to match a target voice.
         
         Args:
             input_audio: AUDIO object containing the audio to convert.
             target_voice: AUDIO object containing the target voice.
+            seed: Random seed for reproducible generation.
             use_cpu: If True, forces CPU usage even if CUDA is available.
             keep_model_loaded: If True, keeps the model loaded in memory after conversion.
             
         Returns:
             Tuple of (audio, message)
         """
+        # Set random seeds for reproducibility
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        if torch.backends.mps.is_available():
+            torch.mps.manual_seed(seed)
+        import numpy as np
+        import random
+        np.random.seed(seed)
+        random.seed(seed)
+        
         # Determine device to use
         device = "cpu" if use_cpu else ("mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu"))
         if use_cpu:

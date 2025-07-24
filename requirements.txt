@@ -4,7 +4,9 @@ librosa
 s3tokenizer
 transformers
 diffusers
-resemble-perth
+# Optional watermarking (may have Python 3.12+ compatibility issues)
+# resemble-perth
 omegaconf
 conformer
 safetensors
+soundfile
