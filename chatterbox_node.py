@@ -48,6 +48,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
     """
     _tts_model = None
     _tts_device = None
+    _tts_conds = None
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -146,6 +147,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
             # Load the TTS model or reuse if loaded and device matches
             if FL_ChatterboxTTSNode._tts_model is not None and FL_ChatterboxTTSNode._tts_device == device:
                 tts_model = FL_ChatterboxTTSNode._tts_model
+                tts_model.conds = FL_ChatterboxTTSNode._tts_conds
                 message += f"\nReusing loaded TTS model on {device}..."
             else:
                 if FL_ChatterboxTTSNode._tts_model is not None:
@@ -161,6 +163,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
                 message += f"\nLoading TTS model on {device}..."
                 pbar.update_absolute(10) # Indicate model loading started
                 tts_model = ChatterboxTTS.from_pretrained(device=device)
+                FL_ChatterboxTTSNode._tts_conds = tts_model.conds
                 pbar.update_absolute(50) # Indicate model loading finished
 
                 if keep_model_loaded:
