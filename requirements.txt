@@ -7,5 +7,6 @@ diffusers
 omegaconf
 conformer
 safetensors
+soundfile
 # Optional watermarking (may have Python 3.12+ compatibility issues)
 # resemble-perth
