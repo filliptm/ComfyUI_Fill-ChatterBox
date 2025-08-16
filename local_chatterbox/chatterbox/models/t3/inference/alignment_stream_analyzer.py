@@ -71,7 +71,11 @@ class AlignmentStreamAnalyzer:
             - When `output_attentions=True`, `LlamaSdpaAttention.forward` calls `LlamaAttention.forward`.
             - `attn_output` has shape [B, H, T0, T0] for the 0th entry, and [B, H, 1, T0+i] for the rest i-th.
             """
-            step_attention = output[1].cpu() # (B, 16, N, N)
+            if output[1] is None:
+                print("⚠️ [DEBUG] Attention output is None – skipping hook.")
+                return
+            step_attention = output[1].cpu()
+
             self.last_aligned_attn = step_attention[0].mean(0) # (N, N)
 
         target_layer = tfmr.layers[alignment_layer_idx].self_attn
