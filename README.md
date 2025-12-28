@@ -5,7 +5,7 @@ High-quality text-to-speech nodes for ComfyUI powered by ResembleAI's Chatterbox
 [![Chatterbox](https://img.shields.io/badge/Chatterbox-Original%20Repo-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/resemble-ai/chatterbox)
 [![Patreon](https://img.shields.io/badge/Patreon-Support%20Me-F96854?style=for-the-badge&logo=patreon&logoColor=white)](https://www.patreon.com/Machinedelusions)
 
-![Workflow Preview](assets/Screenshot%202025-12-28%20at%202.54.42%20PM.png)
+![Workflow Preview](assets/workflow_preview.png)
 
 ## Features
 
