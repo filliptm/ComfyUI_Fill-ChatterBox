@@ -1,95 +1,129 @@
-# ComfyUI_Fill-ChatterBox
+# FL ChatterBox
 
-If you enjoy this project, consider supporting me on Patreon!
-<p align="left">
-  <a href="https://www.patreon.com/c/Machinedelusions">
-    <img src="assets/Patreon.png" width="150px" alt="Patreon">
-  </a>
-</p>
+High-quality text-to-speech nodes for ComfyUI powered by ResembleAI's Chatterbox models. Features voice cloning, multilingual synthesis, paralinguistic expressions, and voice conversion.
 
-A custom node extension for ComfyUI that adds text-to-speech (TTS) and voice conversion (VC) capabilities using the Chatterbox library.
-Supports a MAXIMUM of 40 seconds. Iv tried removing this limitation, but the model falls apart really badly with anything longer than that, so it remains.
+[![Chatterbox](https://img.shields.io/badge/Chatterbox-Original%20Repo-blue?style=for-the-badge&logo=github&logoColor=white)](https://github.com/resemble-ai/chatterbox)
+[![Patreon](https://img.shields.io/badge/Patreon-Support%20Me-F96854?style=for-the-badge&logo=patreon&logoColor=white)](https://www.patreon.com/Machinedelusions)
 
-![ChatterBox Example](web/image.png)
+![Workflow Preview](assets/Screenshot%202025-12-28%20at%202.54.42%20PM.png)
+
+## Features
+
+- **Zero-Shot Voice Cloning** - Clone any voice from a few seconds of reference audio
+- **3 TTS Models** - Standard, Turbo (faster), and Multilingual variants
+- **23 Languages** - Arabic, Chinese, Danish, Dutch, English, Finnish, French, German, Greek, Hebrew, Hindi, Italian, Japanese, Korean, Malay, Norwegian, Polish, Portuguese, Russian, Spanish, Swahili, Swedish, Turkish
+- **Paralinguistic Tags** - Express emotions with tags like `[laugh]`, `[sigh]`, `[gasp]`, `[chuckle]` (Turbo model)
+- **Voice Conversion** - Transform one voice to sound like another
+- **Dialog Synthesis** - Multi-speaker conversations with up to 4 voices
+- **Model Caching** - Keep models loaded between runs for faster iteration
+
+## Nodes
+
+| Node | Description |
+|------|-------------|
+| **FL Chatterbox TTS** | Standard high-quality text-to-speech with voice cloning |
+| **FL Chatterbox Turbo TTS** | Faster GPT2-based TTS with paralinguistic tag support |
+| **FL Chatterbox Multilingual TTS** | 23-language TTS with voice cloning |
+| **FL Chatterbox VC** | Voice conversion - transform source audio to target voice |
+| **FL Chatterbox Dialog TTS** | Multi-speaker dialog synthesis with up to 4 voices |
 
 ## Installation
 
-1. Clone this repository into your ComfyUI custom_nodes directory:
-   ```bash
-   cd /path/to/ComfyUI/custom_nodes
-   git clone https://github.com/filliptm/ComfyUI_Fill-ChatterBox.git
-   ```
+### ComfyUI Manager
+Search for "FL ChatterBox" and install.
 
-2. Install the base dependencies:
-   ```bash
-   pip install -r ComfyUI_Fill-ChatterBox/requirements.txt
-   ```
+### Manual
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/filliptm/ComfyUI_Fill-ChatterBox.git
+cd ComfyUI_Fill-ChatterBox
+pip install -r requirements.txt
+```
 
-3. (Optional) Install watermarking support:
-   ```bash
-   pip install resemble-perth
-   ```
-   **Note**: The `resemble-perth` package may have compatibility issues with Python 3.12+. If you encounter import errors, the nodes will still function without watermarking.
+### Optional: Watermarking Support
+```bash
+pip install resemble-perth
+```
+**Note**: The `resemble-perth` package may have compatibility issues with Python 3.12+. Nodes will function without watermarking if import fails.
 
+## Quick Start
 
-## Usage
+1. Add **FL Chatterbox TTS** (or Turbo/Multilingual variant)
+2. Enter your text in the text field
+3. Optionally connect reference audio for voice cloning
+4. Set `keep_model_loaded = True` for faster subsequent runs
+5. Generate!
 
-### Text-to-Speech Node (FL Chatterbox TTS)
-- Add the "FL Chatterbox TTS" node to your workflow
-- Configure text input and parameters (exaggeration, cfg_weight, temperature)
-- Optionally provide an audio prompt for voice cloning
+### Turbo Model with Expressions
+```
+Hello there! [laugh] Isn't this amazing? [sigh] I just love text to speech.
+```
+Supported tags: `[laugh]`, `[sigh]`, `[gasp]`, `[chuckle]`, `[cough]`, `[sniff]`, `[groan]`, `[shush]`, `[clear throat]`
 
-### Voice Conversion Node (FL Chatterbox VC)
-- Add the "FL Chatterbox VC" node to your workflow
-- Connect input audio and target voice
-- Both nodes support CPU fallback if CUDA errors occur
+## Models
 
-### Dialog TTS Node (FL Chatterbox Dialog TTS)
-- Add the "FL Chatterbox Dialog TTS" node to your workflow.
-- This node is designed to synthesize speech for dialogs with up to 4 distinct speakers (SPEAKER A, SPEAKER B, SPEAKER C, and SPEAKER D).
-- **Inputs:**
-    - `dialog_text`: A multiline string where each line is prefixed by `SPEAKER A:`, `SPEAKER B:`, `SPEAKER C:`, or `SPEAKER D:`. For example:
-      ```
-      SPEAKER A: Hello, how are you?
-      SPEAKER B: I am fine, thank you!
-      SPEAKER C: What about you, Speaker D?
-      SPEAKER D: I'm doing great as well!
-      SPEAKER A: That's wonderful to hear.
-      ```
-    - `speaker_a_prompt`: An audio prompt (AUDIO type) for SPEAKER A's voice (required).
-    - `speaker_b_prompt`: An audio prompt (AUDIO type) for SPEAKER B's voice (required).
-    - `speaker_c_prompt`: An audio prompt (AUDIO type) for SPEAKER C's voice (optional).
-    - `speaker_d_prompt`: An audio prompt (AUDIO type) for SPEAKER D's voice (optional).
-    - `exaggeration`: Controls emotion intensity (0.25-2.0).
-    - `cfg_weight`: Controls pace/classifier-free guidance (0.2-1.0).
-    - `temperature`: Controls randomness in generation (0.05-5.0).
-    - `use_cpu` (optional): Boolean, defaults to False. Forces CPU usage.
-    - `keep_model_loaded` (optional): Boolean, defaults to False. Keeps the model loaded in memory.
-- **Outputs:**
-    - `dialog_audio`: Combined audio with all speakers
-    - `speaker_a_audio`: Isolated track for Speaker A (with silence for other speakers)
-    - `speaker_b_audio`: Isolated track for Speaker B (with silence for other speakers)
-    - `speaker_c_audio`: Isolated track for Speaker C (with silence for other speakers)
-    - `speaker_d_audio`: Isolated track for Speaker D (with silence for other speakers)
-- **Note:** SPEAKER C and SPEAKER D are optional. If their audio prompts are not provided, any dialog lines with "SPEAKER C:" or "SPEAKER D:" will be skipped.
+| Model | Speed | Languages | Notes |
+|-------|-------|-----------|-------|
+| Standard | Normal | English | Highest quality |
+| Turbo | Fast | English | Paralinguistic tags, GPT2-based |
+| Multilingual | Normal | 23 languages | Cross-lingual voice cloning |
 
-## Change Log
+Models download automatically on first use to `ComfyUI/models/chatterbox/`.
 
-### 7/24/2025
-- Added Dialog TTS node that handles up to 4 speakers (A, B, C, D) for conversation-style audio creation
-- Extended all nodes (TTS, VC, Dialog) with seed parameters for reproducible generation
-- SPEAKER C and SPEAKER D are optional in Dialog node - allows flexible 2-4 speaker conversations
-- Each speaker gets isolated audio track output for advanced audio editing workflows
+## Parameters
 
-### 6/24/2025
-- Added seed parameter to both TTS and VC nodes for reproducible generation
-- Seed range: 0 to 4,294,967,295 (32-bit integer)
-- Enables consistent audio output for debugging and workflow control
-- Made Perth watermarking optional to fix Python 3.12+ compatibility issues
-- Nodes now function without watermarking if resemble-perth import fails
+### TTS Parameters
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| `exaggeration` | 0.25-2.0 | Emotion intensity |
+| `cfg_weight` | 0.2-1.0 | Pace/classifier-free guidance |
+| `temperature` | 0.05-5.0 | Randomness in generation |
+| `seed` | 0-4.29B | Reproducible generation |
+| `keep_model_loaded` | bool | Cache model between runs |
 
-### 5/31/2025
-- Added Persistent model loading, and loading bar functionality
-- Added Mac support (needs to be tested so HMU)
-- removed the chatterbox-tts library and implemented native inference code.
+### Turbo Parameters
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| `temperature` | 0.05-2.0 | Randomness in generation |
+| `top_k` | 1-5000 | Top-k sampling |
+| `top_p` | 0.1-1.0 | Nucleus sampling threshold |
+| `repetition_penalty` | 1.0-3.0 | Token repetition penalty |
 
+## Limitations
+
+- Maximum audio length: ~40 seconds per generation
+- Reference audio: Minimum 5-6 seconds recommended
+- Turbo paralinguistic tags: English only
+
+## Requirements
+
+- Python 3.10+
+- 8GB RAM minimum (16GB+ recommended)
+- NVIDIA GPU with 8GB+ VRAM recommended
+- CPU and Mac MPS supported
+
+## License
+
+MIT License - See [Chatterbox repo](https://github.com/resemble-ai/chatterbox) for model licenses.
+
+## Changelog
+
+### 2025-12-28
+- Added Turbo TTS node (faster, GPT2-based with paralinguistic tags)
+- Added Multilingual TTS node (23 languages)
+- Improved model caching using module-level globals
+- Centralized model downloads to `ComfyUI/models/chatterbox/`
+
+### 2025-07-24
+- Added Dialog TTS node for multi-speaker conversations (up to 4 speakers)
+- Extended all nodes with seed parameters for reproducible generation
+- Isolated audio track outputs per speaker
+
+### 2025-06-24
+- Added seed parameter for reproducible generation
+- Made Perth watermarking optional for Python 3.12+ compatibility
+
+### 2025-05-31
+- Added persistent model loading and loading bar
+- Added Mac MPS support
+- Native inference code (removed chatterbox-tts library dependency)

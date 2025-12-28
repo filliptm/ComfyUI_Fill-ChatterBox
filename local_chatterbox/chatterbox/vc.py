@@ -2,7 +2,6 @@ from pathlib import Path
 
 import librosa
 import torch
-from huggingface_hub import hf_hub_download
 
 # Optional Perth watermarking - gracefully handle import failure
 try:
@@ -14,9 +13,11 @@ except ImportError:
 
 from .models.s3tokenizer import S3_SR
 from .models.s3gen import S3GEN_SR, S3Gen
+from .paths import get_chatterbox_tts_dir, download_to_local
 
 
 REPO_ID = "ResembleAI/chatterbox"
+VC_MODEL_FILES = ["s3gen.pt", "conds.pt"]
 
 
 class ChatterboxVC:
@@ -73,11 +74,13 @@ class ChatterboxVC:
             else:
                 print("MPS not available because the current MacOS version is not 12.3+ and/or you do not have an MPS-enabled device on this machine.")
             device = "cpu"
-            
-        for fpath in ["s3gen.pt", "conds.pt"]:
-            local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
 
-        return cls.from_local(Path(local_path).parent, device)
+        # Download models to centralized location: ComfyUI/models/chatterbox/chatterbox/
+        local_dir = get_chatterbox_tts_dir()
+        print(f"[FL Chatterbox VC] Model download path: {local_dir}")
+        download_to_local(REPO_ID, VC_MODEL_FILES, local_dir)
+
+        return cls.from_local(local_dir, device)
 
     def set_target_voice(self, wav_fpath):
         ## Load reference wav

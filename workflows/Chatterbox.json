@@ -1,0 +1,665 @@
+{
+  "id": "d6814114-45ec-4432-8aa8-15a1d08dd55c",
+  "revision": 0,
+  "last_node_id": 26,
+  "last_link_id": 33,
+  "nodes": [
+    {
+      "id": 16,
+      "type": "FL_ChatterboxTTS",
+      "pos": [
+        604.4141939259806,
+        -616.6611297524448
+      ],
+      "size": [
+        400,
+        276
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio_prompt",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            19
+          ]
+        },
+        {
+          "name": "message",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "filliptm/ComfyUI_Fill-ChatterBox",
+        "ver": "e0f3a489f9f72d3347f61b5fe8da281430eb20df",
+        "Node name for S&R": "FL_ChatterboxTTS"
+      },
+      "widgets_values": [
+        "Hello, this is a test.",
+        0.5,
+        0.5,
+        0.8,
+        2223229701,
+        "randomize",
+        false,
+        true
+      ],
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 13,
+      "type": "PreviewAudio",
+      "pos": [
+        1048.4384618228423,
+        -616.0986702686058
+      ],
+      "size": [
+        348.560906069926,
+        88
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 19
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 18,
+      "type": "PreviewAudio",
+      "pos": [
+        1067.0988910964618,
+        -221.83018695692084
+      ],
+      "size": [
+        348.560906069926,
+        88
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 21
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "type": "FL_ChatterboxTurboTTS",
+      "pos": [
+        603.7173176061074,
+        -219.77300439909237
+      ],
+      "size": [
+        400,
+        300
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio_prompt",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            21
+          ]
+        },
+        {
+          "name": "message",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "filliptm/ComfyUI_Fill-ChatterBox",
+        "ver": "e0f3a489f9f72d3347f61b5fe8da281430eb20df",
+        "Node name for S&R": "FL_ChatterboxTurboTTS"
+      },
+      "widgets_values": [
+        "Hello, this is a test. [laugh] Isn't that funny?",
+        0.8,
+        1000,
+        0.95,
+        1.2,
+        42,
+        "fixed",
+        false,
+        true
+      ],
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 19,
+      "type": "FL_ChatterboxVC",
+      "pos": [
+        612.2979451213336,
+        145.98831998769114
+      ],
+      "size": [
+        277.015625,
+        150
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_audio",
+          "type": "AUDIO",
+          "link": 23
+        },
+        {
+          "name": "target_voice",
+          "type": "AUDIO",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            25
+          ]
+        },
+        {
+          "name": "message",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "filliptm/ComfyUI_Fill-ChatterBox",
+        "ver": "e0f3a489f9f72d3347f61b5fe8da281430eb20df",
+        "Node name for S&R": "FL_ChatterboxVC"
+      },
+      "widgets_values": [
+        644843572,
+        "randomize",
+        false,
+        false
+      ],
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 20,
+      "type": "LoadAudio",
+      "pos": [
+        -35.50478505338169,
+        147.91684742338992
+      ],
+      "size": [
+        282.798828125,
+        136
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            28,
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "SCD_VO_BarbKing_01.wav",
+        null,
+        null
+      ]
+    },
+    {
+      "id": 12,
+      "type": "LoadAudio",
+      "pos": [
+        -34.20996863529223,
+        -207.3536826807498
+      ],
+      "size": [
+        282.798828125,
+        136
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            18,
+            20,
+            23,
+            29,
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "1225(1).mp4",
+        null,
+        null
+      ]
+    },
+    {
+      "id": 25,
+      "type": "FL_ChatterboxMultilingualTTS",
+      "pos": [
+        608.6063072713163,
+        -1064.8343442640428
+      ],
+      "size": [
+        400,
+        372
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio_prompt",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            33
+          ]
+        },
+        {
+          "name": "message",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "filliptm/ComfyUI_Fill-ChatterBox",
+        "ver": "e0f3a489f9f72d3347f61b5fe8da281430eb20df",
+        "Node name for S&R": "FL_ChatterboxMultilingualTTS"
+      },
+      "widgets_values": [
+        "Hello, this is a multilingual test.",
+        "English (en)",
+        0.5,
+        0.5,
+        0.8,
+        2,
+        0.05,
+        1,
+        0,
+        "randomize",
+        false,
+        false
+      ],
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 26,
+      "type": "PreviewAudio",
+      "pos": [
+        1064.9230540382507,
+        -1064.4969036586663
+      ],
+      "size": [
+        348.560906069926,
+        88
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 33
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 23,
+      "type": "FL_ChatterboxDialogTTS",
+      "pos": [
+        615.3417155903248,
+        379.15894178321156
+      ],
+      "size": [
+        400,
+        356
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "speaker_A_Audio",
+          "type": "AUDIO",
+          "link": 29
+        },
+        {
+          "name": "speaker_B_Audio",
+          "type": "AUDIO",
+          "link": 30
+        },
+        {
+          "name": "speaker_C_Audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "speaker_D_Audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "dialog_audio",
+          "type": "AUDIO",
+          "links": [
+            31
+          ]
+        },
+        {
+          "name": "speaker_a_audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "speaker_b_audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "speaker_c_audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "speaker_d_audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "message",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "filliptm/ComfyUI_Fill-ChatterBox",
+        "ver": "e0f3a489f9f72d3347f61b5fe8da281430eb20df",
+        "Node name for S&R": "FL_ChatterboxDialogTTS"
+      },
+      "widgets_values": [
+        "SPEAKER A: Test test\nSPEAKER B: 1 2 3",
+        0.5,
+        0.5,
+        0.8,
+        0,
+        "randomize",
+        false,
+        false
+      ],
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 24,
+      "type": "PreviewAudio",
+      "pos": [
+        1098.8488879717245,
+        378.6384238512216
+      ],
+      "size": [
+        348.560906069926,
+        88
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 31
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 21,
+      "type": "PreviewAudio",
+      "pos": [
+        1023.4075617775408,
+        145.45042516865564
+      ],
+      "size": [
+        348.560906069926,
+        88
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 25
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      18,
+      12,
+      0,
+      16,
+      0,
+      "AUDIO"
+    ],
+    [
+      19,
+      16,
+      0,
+      13,
+      0,
+      "AUDIO"
+    ],
+    [
+      20,
+      12,
+      0,
+      15,
+      0,
+      "AUDIO"
+    ],
+    [
+      21,
+      15,
+      0,
+      18,
+      0,
+      "AUDIO"
+    ],
+    [
+      23,
+      12,
+      0,
+      19,
+      0,
+      "AUDIO"
+    ],
+    [
+      25,
+      19,
+      0,
+      21,
+      0,
+      "AUDIO"
+    ],
+    [
+      28,
+      20,
+      0,
+      19,
+      1,
+      "AUDIO"
+    ],
+    [
+      29,
+      12,
+      0,
+      23,
+      0,
+      "AUDIO"
+    ],
+    [
+      30,
+      20,
+      0,
+      23,
+      1,
+      "AUDIO"
+    ],
+    [
+      31,
+      23,
+      0,
+      24,
+      0,
+      "AUDIO"
+    ],
+    [
+      32,
+      12,
+      0,
+      25,
+      0,
+      "AUDIO"
+    ],
+    [
+      33,
+      25,
+      0,
+      26,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Group",
+      "bounding": [
+        -45.50478505338169,
+        -1138.4343442640427,
+        1502.9145790950322,
+        1883.5932860472542
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.4815769309148436,
+      "offset": [
+        732.4394040290586,
+        1134.7214387004035
+      ]
+    },
+    "workflowRendererVersion": "LG",
+    "frontendVersion": "1.34.9"
+  },
+  "version": 0.4
+}
