@@ -22,7 +22,7 @@ from .modules.cond_enc import T3CondEnc, T3Cond
 from .modules.t3_config import T3Config
 from .llama_configs import LLAMA_CONFIGS
 from .inference.t3_hf_backend import T3HuggingfaceBackend
-from .inference.alignment_stream_analyzer import AlignmentStreamAnalyzer
+# AlignmentStreamAnalyzer import removed - disabled due to SDPA incompatibility
 
 
 logger = logging.getLogger(__name__)
@@ -281,19 +281,17 @@ class T3(nn.Module):
         # TODO? synchronize the expensive compile function
         # with self.compile_lock:
         if not self.compiled:
-            alignment_stream_analyzer = AlignmentStreamAnalyzer(
-                self.tfmr,
-                None,
-                text_tokens_slice=(len_cond, len_cond + text_tokens.size(-1)),
-                alignment_layer_idx=9, # TODO: hparam or something?
-                eos_idx=self.hp.stop_speech_token,
-            )
+            # NOTE: AlignmentStreamAnalyzer disabled - it requires attention weights from
+            # output_attentions=True, which is incompatible with SDPA (the default in
+            # transformers >=4.36). Since the analyzer's step() method was already commented
+            # out in t3_hf_backend.py, we skip creating it entirely to avoid the crash.
+            # See: https://github.com/resemble-ai/chatterbox/issues/106
             patched_model = T3HuggingfaceBackend(
                 config=self.cfg,
                 llama=self.tfmr,
                 speech_enc=self.speech_emb,
                 speech_head=self.speech_head,
-                alignment_stream_analyzer=alignment_stream_analyzer,
+                alignment_stream_analyzer=None,
             )
             self.patched_model = patched_model
             self.compiled = True
