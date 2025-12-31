@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_fill-chatterbox"
 description = "Voice Clone and TTS model."
-version = "1.0.2"
+version = "1.0.3"
 license = "LICENSE"
 dependencies = ["numpy", "resampy", "librosa", "s3tokenizer", "transformers", "diffusers", "resemble-perth", "omegaconf", "conformer"]
 

@@ -5,11 +5,11 @@ import numpy as np
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Import from the installed chatterbox package
-from chatterbox.tts import ChatterboxTTS
-from chatterbox.tts_turbo import ChatterboxTurboTTS
-from chatterbox.mtl_tts import ChatterboxMultilingualTTS, SUPPORTED_LANGUAGES
-from chatterbox.vc import ChatterboxVC
+# Import from the local chatterbox implementation
+from .local_chatterbox.chatterbox import ChatterboxTTS
+from .local_chatterbox.chatterbox import ChatterboxTurboTTS
+from .local_chatterbox.chatterbox import ChatterboxMultilingualTTS, SUPPORTED_LANGUAGES
+from .local_chatterbox.chatterbox import ChatterboxVC
 
 from comfy.utils import ProgressBar
 
