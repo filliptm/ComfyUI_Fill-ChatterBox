@@ -14,8 +14,14 @@
 import threading
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 from .matcha.flow_matching import BASECFM
 from omegaconf import OmegaConf
+
+
+def cast_all(*tensors, dtype):
+    """Cast all tensors to specified dtype."""
+    return [t.to(dtype) if t is not None else None for t in tensors]
 
 
 CFM_PARAMS = OmegaConf.create({
@@ -198,10 +204,11 @@ class ConditionalCFM(BASECFM):
 class CausalConditionalCFM(ConditionalCFM):
     def __init__(self, in_channels=240, cfm_params=CFM_PARAMS, n_spks=1, spk_emb_dim=80, estimator=None):
         super().__init__(in_channels, cfm_params, n_spks, spk_emb_dim, estimator)
-        self.rand_noise = torch.randn([1, 80, 50 * 300])
+        # TODO: BAD BAD IDEA - IT'LL MESS UP DISTILLATION - SETTING TO NONE
+        self.rand_noise = None
 
     @torch.inference_mode()
-    def forward(self, mu, mask, n_timesteps, temperature=1.0, spks=None, cond=None):
+    def forward(self, mu, mask, n_timesteps, temperature=1.0, spks=None, cond=None, noised_mels=None, meanflow=False):
         """Forward diffusion
 
         Args:
@@ -214,15 +221,43 @@ class CausalConditionalCFM(ConditionalCFM):
             spks (torch.Tensor, optional): speaker ids. Defaults to None.
                 shape: (batch_size, spk_emb_dim)
             cond: Not used but kept for future purposes
+            noised_mels: gt mels noised at time t
+            meanflow: whether to use meanflow mode
 
         Returns:
             sample: generated mel-spectrogram
                 shape: (batch_size, n_feats, mel_timesteps)
         """
 
-        z = self.rand_noise[:, :, :mu.size(2)].to(mu.device).to(mu.dtype) * temperature
-        # fix prompt and overlap part mu and z
+        B = mu.size(0)
+        z = torch.randn_like(mu)
+
+        if noised_mels is not None:
+            prompt_len = mu.size(2) - noised_mels.size(2)
+            z[..., prompt_len:] = noised_mels
+
+        # time steps for reverse diffusion
         t_span = torch.linspace(0, 1, n_timesteps + 1, device=mu.device, dtype=mu.dtype)
-        if self.t_scheduler == 'cosine':
+        if (not meanflow) and (self.t_scheduler == 'cosine'):
             t_span = 1 - torch.cos(t_span * 0.5 * torch.pi)
+
+        # NOTE: right now, the only meanflow models are also distilled models, which don't need CFG
+        #   because they were distilled with CFG outputs. We would need to add another hparam and
+        #   change the conditional logic here if we want to use CFG inference with a meanflow model.
+        if meanflow:
+            return self.basic_euler(z, t_span=t_span, mu=mu, mask=mask, spks=spks, cond=cond), None
+
         return self.solve_euler(z, t_span=t_span, mu=mu, mask=mask, spks=spks, cond=cond), None
+
+    def basic_euler(self, x, t_span, mu, mask, spks, cond):
+        in_dtype = x.dtype
+        x, t_span, mu, mask, spks, cond = cast_all(x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype)
+
+        print("S3 Token -> Mel Inference...")
+        for t, r in tqdm(zip(t_span[..., :-1], t_span[..., 1:]), total=t_span.shape[-1] - 1):
+            t, r = t[None], r[None]
+            dxdt = self.estimator.forward(x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r)
+            dt = r - t
+            x = x + dt * dxdt
+
+        return x.to(in_dtype)

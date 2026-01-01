@@ -20,6 +20,24 @@ from torch.nn import functional as F
 from omegaconf import DictConfig
 from .utils.mask import make_pad_mask
 
+logger = logging.getLogger(__name__)
+
+
+def _repeat_batch_dim(x, B, ndim):
+    """Repeat tensor along batch dimension if needed."""
+    if x is None:
+        return x
+    if x.size(0) == B:
+        return x
+    if x.size(0) == 1:
+        if ndim == 1:
+            return x.repeat(B)
+        elif ndim == 2:
+            return x.repeat(B, 1)
+        elif ndim == 3:
+            return x.repeat(B, 1, 1)
+    raise ValueError(f"Cannot repeat tensor of size {x.size(0)} to batch size {B}")
+
 
 class MaskedDiffWithXvec(torch.nn.Module):
     def __init__(self,
@@ -202,41 +220,62 @@ class CausalMaskedDiffWithXvec(torch.nn.Module):
                   prompt_feat,
                   prompt_feat_len,
                   embedding,
-                  finalize):
-        if self.fp16 is True:
-            prompt_feat = prompt_feat.half()
-            embedding = embedding.half()
+                  finalize,
+                  n_timesteps=10,
+                  noised_mels=None,
+                  meanflow=False):
+        # token: (B, n_toks)
+        # token_len: (B,)
+        B = token.size(0)
 
-        assert token.shape[0] == 1
         # xvec projection
+        embedding = torch.atleast_2d(embedding)
         embedding = F.normalize(embedding, dim=1)
-        embedding = self.spk_embed_affine_layer(embedding)
+        embedding = self.spk_embed_affine_layer(embedding)  # (1 or B, emb_dim)
+
+        # adjust shapes (batching logic)
+        prompt_token = _repeat_batch_dim(prompt_token, B, ndim=2)  # (B, n_prompt)
+        prompt_token_len = _repeat_batch_dim(prompt_token_len, B, ndim=1)  # (B,)
+        prompt_feat = _repeat_batch_dim(prompt_feat, B, ndim=3)  # (B, n_feat, feat_dim=80)
+        prompt_feat_len = _repeat_batch_dim(prompt_feat_len, B, ndim=1)  # (B,) or None
+        embedding = _repeat_batch_dim(embedding, B, ndim=2)  # (B, emb_dim)
 
         # concat text and prompt_text
-        token, token_len = torch.concat([prompt_token, token], dim=1), prompt_token_len + token_len
+        token, token_len = torch.concat([prompt_token, token], dim=1), (prompt_token_len + token_len).long()
         mask = (~make_pad_mask(token_len)).unsqueeze(-1).to(embedding)
-        token = self.input_embedding(torch.clamp(token, min=0)) * mask
+
+        if (token >= self.vocab_size).any():
+            logger.error(f"{token.max()}>{self.vocab_size}\n out-of-range special tokens found in flow, fix inputs!")
+        token = self.input_embedding(token.long()) * mask
 
         # text encode
-        h, h_lengths = self.encoder(token, token_len)
+        h, h_masks = self.encoder(token, token_len)
         if finalize is False:
             h = h[:, :-self.pre_lookahead_len * self.token_mel_ratio]
+
+        h_lengths = h_masks.sum(dim=-1).squeeze(dim=-1).long()
         mel_len1, mel_len2 = prompt_feat.shape[1], h.shape[1] - prompt_feat.shape[1]
         h = self.encoder_proj(h)
 
-        # get conditions
-        conds = torch.zeros([1, mel_len1 + mel_len2, self.output_size], device=token.device).to(h.dtype)
+        # # get conditions
+        conds = torch.zeros([B, mel_len1 + mel_len2, self.output_size], device=token.device).to(h.dtype)
         conds[:, :mel_len1] = prompt_feat
         conds = conds.transpose(1, 2)
 
-        mask = (~make_pad_mask(torch.tensor([mel_len1 + mel_len2]))).to(h)
+        mask = (~make_pad_mask(h_lengths)).unsqueeze(1).to(h)
+
+        if mask.shape[0] != B:
+            mask = mask.repeat(B, 1, 1)
+
         feat, _ = self.decoder(
             mu=h.transpose(1, 2).contiguous(),
-            mask=mask.unsqueeze(1),
+            mask=mask,
             spks=embedding,
             cond=conds,
-            n_timesteps=10
+            n_timesteps=n_timesteps,
+            noised_mels=noised_mels,
+            meanflow=meanflow,
         )
         feat = feat[:, :, mel_len1:]
         assert feat.shape[2] == mel_len2
-        return feat.float(), None  # NOTE jrm: why are they returning None here?
+        return feat, None  # NOTE jrm: why are they returning None here?

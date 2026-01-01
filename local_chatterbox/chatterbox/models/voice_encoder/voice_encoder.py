@@ -257,14 +257,17 @@ class VoiceEncoder(nn.Module):
 
         :param trim_top_db: this argument was only added for the sake of compatibility with metavoice's implementation
         """
+        # Ensure all wavs are float32 (librosa operations can return float64)
+        wavs = [wav.astype(np.float32) if wav.dtype != np.float32 else wav for wav in wavs]
+
         if sample_rate != self.hp.sample_rate:
             wavs = [
-                librosa.resample(wav, orig_sr=sample_rate, target_sr=self.hp.sample_rate, res_type="kaiser_fast")
+                librosa.resample(wav, orig_sr=sample_rate, target_sr=self.hp.sample_rate, res_type="kaiser_fast").astype(np.float32)
                 for wav in wavs
             ]
 
         if trim_top_db:
-            wavs = [librosa.effects.trim(wav, top_db=trim_top_db)[0] for wav in wavs]
+            wavs = [librosa.effects.trim(wav, top_db=trim_top_db)[0].astype(np.float32) for wav in wavs]
 
         if "rate" not in kwargs:
             kwargs["rate"] = 1.3  # Resemble's default value.

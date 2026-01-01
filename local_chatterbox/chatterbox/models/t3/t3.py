@@ -14,6 +14,7 @@ from transformers.generation.logits_process import (
     RepetitionPenaltyLogitsProcessor,
     TemperatureLogitsWarper,
     TopKLogitsWarper,
+    MinPLogitsWarper,
 )
 
 from .modules.learned_pos_emb import LearnedPositionEmbeddings
@@ -247,10 +248,11 @@ class T3(nn.Module):
         stop_on_eos=True,
         do_sample=True,
         temperature=0.8,
-        top_p=0.8,
+        top_p=0.95,
+        min_p=0.05,
         length_penalty=1.0,
-        repetition_penalty=2.0,
-        cfg_weight=0,
+        repetition_penalty=1.2,
+        cfg_weight=0.5,
     ):
         """
         Args:
@@ -334,7 +336,8 @@ class T3(nn.Module):
 
         # Instantiate the logits processors.
         top_p_warper = TopPLogitsWarper(top_p=top_p)
-        repetition_penalty_processor = RepetitionPenaltyLogitsProcessor(penalty=repetition_penalty)
+        min_p_warper = MinPLogitsWarper(min_p=min_p)
+        repetition_penalty_processor = RepetitionPenaltyLogitsProcessor(penalty=float(repetition_penalty))
 
         # ---- Initial Forward Pass (no kv_cache yet) ----
         output = self.patched_model(
@@ -364,9 +367,11 @@ class T3(nn.Module):
             if temperature != 1.0:
                 logits = logits / temperature
 
-            # Apply repetition penalty and top‑p filtering.
-            logits = repetition_penalty_processor(generated_ids, logits)
-            logits = top_p_warper(None, logits)
+            # Apply repetition penalty, min_p, and top_p filtering.
+            ids_for_proc = generated_ids[:1, ...]   # batch = 1
+            logits = repetition_penalty_processor(ids_for_proc, logits)
+            logits = min_p_warper(ids_for_proc, logits)
+            logits = top_p_warper(ids_for_proc, logits)
 
             # Convert logits to probabilities and sample the next token.
             probs = torch.softmax(logits, dim=-1)

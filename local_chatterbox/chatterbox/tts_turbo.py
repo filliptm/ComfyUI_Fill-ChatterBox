@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import librosa
 import torch
 from safetensors.torch import load_file
@@ -223,13 +224,17 @@ class ChatterboxTurboTTS:
     def prepare_conditionals(self, wav_fpath, exaggeration=0.5, norm_loudness=True):
         """Prepare voice conditionals from reference audio."""
         s3gen_ref_wav, _sr = librosa.load(wav_fpath, sr=S3GEN_SR)
+        # Ensure float32 for PyTorch compatibility
+        s3gen_ref_wav = s3gen_ref_wav.astype(np.float32)
 
         assert len(s3gen_ref_wav) / _sr > 5.0, "Audio prompt must be longer than 5 seconds!"
 
         if norm_loudness:
             s3gen_ref_wav = self.norm_loudness(s3gen_ref_wav, _sr)
+            # Ensure float32 after loudness normalization (multiplication can promote to float64)
+            s3gen_ref_wav = s3gen_ref_wav.astype(np.float32)
 
-        ref_16k_wav = librosa.resample(s3gen_ref_wav, orig_sr=S3GEN_SR, target_sr=S3_SR)
+        ref_16k_wav = librosa.resample(s3gen_ref_wav, orig_sr=S3GEN_SR, target_sr=S3_SR).astype(np.float32)
 
         s3gen_ref_wav = s3gen_ref_wav[:self.DEC_COND_LEN]
         s3gen_ref_dict = self.s3gen.embed_ref(s3gen_ref_wav, S3GEN_SR, device=self.device)

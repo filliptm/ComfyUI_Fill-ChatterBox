@@ -4,6 +4,38 @@ import torchaudio
 import numpy as np
 from pathlib import Path
 from typing import Optional, Dict, Any
+import scipy.io.wavfile as wavfile
+
+
+def save_audio_wav(filepath: str, waveform: torch.Tensor, sample_rate: int):
+    """
+    Save audio to WAV file with fallback for TorchCodec issues.
+
+    Args:
+        filepath: Path to save the audio file
+        waveform: Audio tensor of shape (channels, samples) or (samples,)
+        sample_rate: Sample rate in Hz
+    """
+    # Ensure waveform is float32 for consistency
+    waveform = waveform.float()
+
+    try:
+        # Try torchaudio first with explicit backend
+        torchaudio.save(filepath, waveform, sample_rate, backend="soundfile")
+    except Exception:
+        try:
+            # Fallback: try without specifying backend
+            torchaudio.save(filepath, waveform, sample_rate)
+        except Exception:
+            # Final fallback: use scipy
+            audio_np = waveform.cpu().numpy().astype(np.float32)
+            # scipy expects (samples, channels) for stereo, or (samples,) for mono
+            if len(audio_np.shape) == 2:
+                audio_np = audio_np.T  # Transpose from (channels, samples) to (samples, channels)
+            # Normalize to int16 range for WAV file
+            audio_np = (audio_np * 32767).astype(np.int16)
+            wavfile.write(filepath, sample_rate, audio_np)
+
 
 # Import from the local chatterbox implementation
 from .local_chatterbox.chatterbox import ChatterboxTTS
@@ -299,7 +331,7 @@ class FL_ChatterboxTTSNode(AudioNodeBase):
                 
                 # Save the audio prompt to the temporary file
                 prompt_waveform = audio_prompt['waveform'].squeeze(0)
-                torchaudio.save(audio_prompt_path, prompt_waveform, audio_prompt['sample_rate'])
+                save_audio_wav(audio_prompt_path, prompt_waveform, audio_prompt['sample_rate'])
                 message += f"\nUsing provided audio prompt for voice cloning: {audio_prompt_path}"
                 
                 # Debug: Check if the file exists and has content
@@ -499,7 +531,7 @@ class FL_ChatterboxTurboTTSNode(AudioNodeBase):
 
                 # Save the audio prompt to the temporary file
                 prompt_waveform = audio_prompt['waveform'].squeeze(0)
-                torchaudio.save(audio_prompt_path, prompt_waveform, audio_prompt['sample_rate'])
+                save_audio_wav(audio_prompt_path, prompt_waveform, audio_prompt['sample_rate'])
                 message += f"\nUsing provided audio prompt for voice cloning"
 
                 # Check audio duration (Turbo requires min 5 seconds)
@@ -712,7 +744,7 @@ class FL_ChatterboxMultilingualTTSNode(AudioNodeBase):
 
                 # Save the audio prompt to the temporary file
                 prompt_waveform = audio_prompt['waveform'].squeeze(0)
-                torchaudio.save(audio_prompt_path, prompt_waveform, audio_prompt['sample_rate'])
+                save_audio_wav(audio_prompt_path, prompt_waveform, audio_prompt['sample_rate'])
                 message += f"\nUsing provided audio prompt for voice cloning"
 
                 # Check audio duration (Multilingual requires min 6 seconds)
@@ -901,16 +933,16 @@ class FL_ChatterboxVCNode(AudioNodeBase):
         
         # Save the input audio to the temporary file
         input_waveform = input_audio['waveform'].squeeze(0)
-        torchaudio.save(input_audio_path, input_waveform, input_audio['sample_rate'])
-        
+        save_audio_wav(input_audio_path, input_waveform, input_audio['sample_rate'])
+
         # Create a temporary file for the target voice
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_target:
             target_voice_path = temp_target.name
             temp_files.append(target_voice_path)
-        
+
         # Save the target voice to the temporary file
         target_waveform = target_voice['waveform'].squeeze(0)
-        torchaudio.save(target_voice_path, target_waveform, target_voice['sample_rate'])
+        save_audio_wav(target_voice_path, target_waveform, target_voice['sample_rate'])
         
         vc_model = None
         pbar = ProgressBar(100) # Simple progress bar for overall process
