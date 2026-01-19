@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import librosa
+import numpy as np
 import torch
 import torch.nn.functional as F
 from safetensors.torch import load_file as load_safetensors
@@ -212,6 +213,50 @@ class ChatterboxMultilingualTTS:
 
         return cls.from_local(local_dir, device)
 
+    def _trim_trailing_silence(self, wav, threshold_db=-40, min_silence_duration=0.5):
+        """
+        Trim trailing silence/noise from audio.
+
+        Args:
+            wav: Audio waveform as numpy array
+            threshold_db: Silence threshold in dB (default -40dB)
+            min_silence_duration: Minimum silence duration to trigger trimming (seconds)
+
+        Returns:
+            Trimmed audio waveform
+        """
+        # Convert threshold from dB to linear amplitude
+        threshold = 10 ** (threshold_db / 20)
+
+        # Calculate RMS energy in windows
+        window_size = int(0.02 * self.sr)  # 20ms windows
+        hop_size = window_size // 2
+
+        # Compute RMS for each window
+        num_windows = (len(wav) - window_size) // hop_size + 1
+        if num_windows <= 0:
+            return wav
+
+        rms = np.zeros(num_windows)
+        for i in range(num_windows):
+            start = i * hop_size
+            end = start + window_size
+            rms[i] = np.sqrt(np.mean(wav[start:end] ** 2))
+
+        # Find the last window above threshold
+        above_threshold = rms > threshold
+        if not np.any(above_threshold):
+            # All silence, return minimal audio
+            return wav[:int(0.1 * self.sr)]
+
+        last_voice_idx = np.where(above_threshold)[0][-1]
+
+        # Convert back to sample index and add a small buffer
+        trim_sample = (last_voice_idx + 1) * hop_size + window_size
+        trim_sample = min(trim_sample + int(0.1 * self.sr), len(wav))  # Add 100ms buffer
+
+        return wav[:trim_sample]
+
     def prepare_conditionals(self, wav_fpath, exaggeration=0.5):
         """Prepare voice conditionals from reference audio."""
         s3gen_ref_wav, _sr = librosa.load(wav_fpath, sr=S3GEN_SR)
@@ -319,6 +364,10 @@ class ChatterboxMultilingualTTS:
                 ref_dict=self.conds.gen,
             )
             wav = wav.squeeze(0).detach().cpu().numpy()
+
+            # Trim trailing silence/noise - workaround for known multilingual model issue
+            # See: https://github.com/resemble-ai/chatterbox/issues/287
+            wav = self._trim_trailing_silence(wav)
 
             if self.watermarker is not None:
                 watermarked_wav = self.watermarker.apply_watermark(wav, sample_rate=self.sr)
