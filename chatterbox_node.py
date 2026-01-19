@@ -211,9 +211,9 @@ def load_vc_model(device: str) -> ChatterboxVC:
     local_dir = get_chatterbox_models_dir() / "chatterbox_vc"
     print(f"[FL Chatterbox VC] Model download path: {local_dir}")
 
+    # VC model requires s3gen.pt (not safetensors) - see vc.py VC_MODEL_FILES
     vc_files = [
-        "ve.safetensors",
-        "s3gen.safetensors",
+        "s3gen.pt",
         "conds.pt",
     ]
 
@@ -889,14 +889,14 @@ class FL_ChatterboxVCNode(AudioNodeBase):
     def convert_voice(self, input_audio, target_voice, seed, use_cpu=False, keep_model_loaded=False):
         """
         Convert the voice in an audio file to match a target voice.
-        
+
         Args:
             input_audio: AUDIO object containing the audio to convert.
             target_voice: AUDIO object containing the target voice.
             seed: Random seed for reproducible generation.
             use_cpu: If True, forces CPU usage even if CUDA is available.
             keep_model_loaded: If True, keeps the model loaded in memory after conversion.
-            
+
         Returns:
             Tuple of (audio, message)
         """
@@ -921,16 +921,16 @@ class FL_ChatterboxVCNode(AudioNodeBase):
              message = "Using CUDA (NVIDIA GPU) for inference"
         else:
             message = f"Using {device} for inference" # Should be CPU if no GPU found
-        
+
         # Create temporary files for the audio inputs
         import tempfile
         temp_files = []
-        
+
         # Create a temporary file for the input audio
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_input:
             input_audio_path = temp_input.name
             temp_files.append(input_audio_path)
-        
+
         # Save the input audio to the temporary file
         input_waveform = input_audio['waveform'].squeeze(0)
         save_audio_wav(input_audio_path, input_waveform, input_audio['sample_rate'])
@@ -943,7 +943,7 @@ class FL_ChatterboxVCNode(AudioNodeBase):
         # Save the target voice to the temporary file
         target_waveform = target_voice['waveform'].squeeze(0)
         save_audio_wav(target_voice_path, target_waveform, target_voice['sample_rate'])
-        
+
         vc_model = None
         pbar = ProgressBar(100) # Simple progress bar for overall process
         try:
@@ -968,7 +968,7 @@ class FL_ChatterboxVCNode(AudioNodeBase):
 
             # Convert voice
             message += f"\nConverting voice to match target voice"
-            
+
             pbar.update_absolute(60) # Indicate conversion started
             converted_wav = vc_model.generate(
                 audio=input_audio_path,
