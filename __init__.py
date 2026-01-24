@@ -11,3 +11,11 @@ NODE_DISPLAY_NAME_MAPPINGS.update(DIALOG_DISPLAY_NAME_MAPPINGS)
 
 WEB_DIRECTORY = "./web"
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
+
+# ASCII art banner
+ascii_art = """
+⣏⡉ ⡇    ⡎⠑ ⣇⡀ ⢀⣀ ⣰⡀ ⣰⡀ ⢀⡀ ⡀⣀ ⣏⡱ ⢀⡀ ⡀⢀
+⠇  ⠧⠤   ⠣⠔ ⠇⠸ ⠣⠼ ⠘⠤ ⠘⠤ ⠣⠭ ⠏  ⠧⠜ ⠣⠜ ⠜⠣
+"""
+print(f"\033[35m{ascii_art}\033[0m")
+print("FL ChatterBox Custom Nodes Loaded")
