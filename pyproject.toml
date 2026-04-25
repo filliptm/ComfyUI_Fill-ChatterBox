@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_fill-chatterbox"
 description = "Voice Clone and TTS model."
-version = "1.0.3"
+version = "1.0.4"
 license = "LICENSE"
 dependencies = ["numpy", "resampy", "librosa", "s3tokenizer", "transformers", "diffusers", "resemble-perth", "omegaconf", "conformer"]
 
@@ -12,4 +12,4 @@ Repository = "https://github.com/filliptm/ComfyUI_Fill-ChatterBox"
 [tool.comfy]
 PublisherId = "machinedelusions"
 DisplayName = "ComfyUI_Fill-ChatterBox"
-Icon = ""
+Icon = "https://avatars.githubusercontent.com/u/55672949"
