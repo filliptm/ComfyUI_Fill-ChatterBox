@@ -233,7 +233,9 @@ def load_vc_model(device: str) -> ChatterboxVC:
 # that never opted in. Scoping keeps the device-defaulting only for this
 # pack's own Chatterbox model loads.
 original_torch_load = torch.load
-def patched_torch_load(*args, **kwargs):
+
+
+def _torch_load_with_default_map_location(load_func, *args, **kwargs):
     if 'map_location' not in kwargs:
         # Determine the appropriate device (MPS for Mac, else CPU)
         if torch.backends.mps.is_available():
@@ -243,14 +245,22 @@ def patched_torch_load(*args, **kwargs):
         else:
             device = "cpu"
         kwargs['map_location'] = torch.device(device)
-    return original_torch_load(*args, **kwargs)
+    return load_func(*args, **kwargs)
+
+
+def patched_torch_load(*args, **kwargs):
+    return _torch_load_with_default_map_location(original_torch_load, *args, **kwargs)
 
 
 @contextlib.contextmanager
 def default_map_location():
     """Temporarily install patched_torch_load for this pack's model loads."""
     previous = torch.load
-    torch.load = patched_torch_load
+
+    def scoped_torch_load(*args, **kwargs):
+        return _torch_load_with_default_map_location(previous, *args, **kwargs)
+
+    torch.load = scoped_torch_load
     try:
         yield
     finally:
