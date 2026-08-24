@@ -10,7 +10,7 @@ import torch.nn.functional as F
 try:
     import perth
     PERTH_AVAILABLE = True
-except ImportError:
+except (ImportError, AttributeError):
     PERTH_AVAILABLE = False
     print("Warning: Perth watermarking not available. Audio will be generated without watermarking.")
 from safetensors.torch import load_file
